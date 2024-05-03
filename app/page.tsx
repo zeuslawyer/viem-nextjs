@@ -1,32 +1,94 @@
-import AcmeLogo from '@/app/ui/acme-logo';
-import { ArrowRightIcon } from '@heroicons/react/24/outline';
+'use client';
+
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import {
+  Address,
+  createWalletClient,
+  custom,
+  parseEther,
+  parseUnits,
+  formatUnits,
+  WalletClient,
+} from 'viem';
+import { sepolia } from 'viem/chains';
+import { set } from 'zod';
 
 export default function Page() {
+  const WALLET_2 = '0x52eE5a881287486573cF5CB5e7E7D92F30b03014';
+
+  const [account, setAccount] = useState<Address>();
+  const [walletClient, setWalletClient] = useState<WalletClient>();
+  const [addr2Bal, setAddr2Bal] = useState<string | number>('?');
+
+  useEffect(() => {
+    if (typeof window !== undefined && window.ethereum) {
+      const walletClient = createWalletClient({
+        chain: sepolia,
+        transport: custom(window?.ethereum!),
+      });
+      setWalletClient(walletClient);
+      console.log('wallet client set...');
+
+      async function getWallet2Balance() {
+        const startingBal = await window.ethereum.request({
+          method: 'eth_getBalance',
+          params: [WALLET_2, null],
+        });
+        console.log('Starting balance:', parseInt(startingBal) / 1e18);
+        setAddr2Bal(parseInt(startingBal) / 1e18);
+      }
+      walletClient && getWallet2Balance();
+    }
+  }, [addr2Bal]);
+
+  const handleConnect = async () => {
+    const [myAddr1, myAddr2] = await walletClient.requestAddresses();
+    setAccount(myAddr1);
+  };
+
+  const sendTransaction = async () => {
+    console.log('Sending some moolah to Zubin');
+    if (!account) return;
+    await walletClient.sendTransaction({
+      chain: sepolia,
+      account,
+      to: WALLET_2,
+      value: parseEther('0.000001'),
+    });
+
+    console.log('Transaction sent');
+    const newBal = await window.ethereum.request({
+      method: 'eth_getBalance',
+      params: [WALLET_2, null],
+    });
+
+    setAddr2Bal(parseInt(newBal) / 1e18);
+    setTimeout(() => {
+      window.alert(
+        'please reload the window after Metamask confirms the transaction to see the updated Wallet 2 balance',
+      );
+    }, 5000);
+  };
+
+  if (!walletClient) return <div>Loading Window.Provider...</div>;
+
   return (
     <main className="flex min-h-screen flex-col p-6">
-      <div className="flex h-20 shrink-0 items-end rounded-lg bg-blue-500 p-4 md:h-52">
-        {/* <AcmeLogo /> */}
-      </div>
-      <div className="mt-4 flex grow flex-col gap-4 md:flex-row">
-        <div className="flex flex-col justify-center gap-6 rounded-lg bg-gray-50 px-6 py-10 md:w-2/5 md:px-20">
-          <p className={`text-xl text-gray-800 md:text-3xl md:leading-normal`}>
-            <strong>Welcome to Acme.</strong> This is the example for the{' '}
-            <a href="https://nextjs.org/learn/" className="text-blue-500">
-              Next.js Learn Course
-            </a>
-            , brought to you by Vercel.
-          </p>
-          <Link
-            href="/login"
-            className="flex items-center gap-5 self-start rounded-lg bg-blue-500 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-400 md:text-base"
-          >
-            <span>Log in</span> <ArrowRightIcon className="w-5 md:w-6" />
-          </Link>
-        </div>
-        <div className="flex items-center justify-center p-6 md:w-3/5 md:px-28 md:py-12">
-          {/* Add Hero Images Here */}
-        </div>
+      <div>
+        <h1>
+          Front end has gotten real crazy....give me distributed services in
+          multiregion cloud VPNs any day 🤪
+        </h1>
+        <h2>Wallet 2 Balance: {addr2Bal}</h2>
+        {!account && <button onClick={handleConnect}>Connect Wallet</button>}
+
+        {account && (
+          <>
+            <div>Connected To Wallet: {account}</div>
+            <button onClick={sendTransaction}>Send Transaction</button>
+          </>
+        )}
       </div>
     </main>
   );
